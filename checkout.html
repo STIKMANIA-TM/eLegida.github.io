@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Finalizar Compra | ELEGIDA</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="bg-gray-50">
+  <nav class="bg-white shadow sticky top-0 z-40">
+    <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+      <a href="index.html" class="text-2xl font-bold text-pink-600">ELEGIDA</a>
+      <a href="carrito.html" class="relative">🛒 <span id="cart-badge" class="absolute -top-2 -right-2 bg-pink-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center"></span></a>
+    </div>
+  </nav>
+
+  <main class="container mx-auto px-4 py-8 max-w-2xl">
+    <h1 class="text-3xl font-bold mb-6">Finalizar Compra</h1>
+    
+    <form id="checkout-form" class="bg-white p-6 rounded-lg shadow space-y-4">
+      <div>
+        <label class="block font-semibold mb-1">Nombre completo *</label>
+        <input type="text" name="name" required class="w-full border p-2 rounded">
+      </div>
+
+      <div>
+        <label class="block font-semibold mb-1">Email *</label>
+        <input type="email" name="email" required class="w-full border p-2 rounded">
+      </div>
+
+      <div>
+        <label class="block font-semibold mb-1">Teléfono *</label>
+        <input type="tel" name="phone" required class="w-full border p-2 rounded">
+      </div>
+
+      <div>
+        <label class="block font-semibold mb-1">Dirección de entrega *</label>
+        <textarea name="address" required rows="3" class="w-full border p-2 rounded"></textarea>
+      </div>
+
+      <div>
+        <label class="block font-semibold mb-2">Método de pago *</label>
+        <div class="space-y-2">
+          <label class="flex items-center gap-2 p-3 border rounded cursor-pointer hover:bg-gray-50">
+            <input type="radio" name="payment" value="transfermovil" required checked>
+            <div>
+              <p class="font-semibold">Transfermóvil</p>
+              <p class="text-sm text-gray-500">Transferencia bancaria</p>
+            </div>
+          </label>
+          <label class="flex items-center gap-2 p-3 border rounded cursor-pointer hover:bg-gray-50">
+            <input type="radio" name="payment" value="enzona">
+            <div>
+              <p class="font-semibold">EnZona</p>
+              <p class="text-sm text-gray-500">Pago electrónico</p>
+            </div>
+          </label>
+          <label class="flex items-center gap-2 p-3 border rounded cursor-pointer hover:bg-gray-50">
+            <input type="radio" name="payment" value="cash">
+            <div>
+              <p class="font-semibold">Efectivo</p>
+              <p class="text-sm text-gray-500">Contra entrega</p>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <div class="bg-gray-50 p-4 rounded">
+        <h3 class="font-semibold mb-2">Resumen del pedido</h3>
+        <div id="order-summary"></div>
+        <div class="border-t mt-2 pt-2 flex justify-between text-xl font-bold">
+          <span>Total:</span>
+          <span id="order-total" class="text-pink-600">$0.00</span>
+        </div>
+      </div>
+
+      <button type="submit" class="w-full bg-pink-600 text-white py-3 rounded-lg font-bold hover:bg-pink-700 transition">
+        Confirmar Pedido
+      </button>
+    </form>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/config.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/cart.js"></script>
+  <script>
+    const cart = getCart();
+    const total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+
+    // Mostrar resumen
+    document.getElementById('order-summary').innerHTML = cart.map(item => `
+      <div class="flex justify-between text-sm py-1">
+        <span>${item.name} (${item.size}/${item.color}) x${item.qty}</span>
+        <span>${formatPrice(item.price * item.qty)}</span>
+      </div>
+    `).join('');
+    document.getElementById('order-total').textContent = formatPrice(total);
+
+    // Procesar checkout
+    document.getElementById('checkout-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      if (cart.length === 0) {
+        showNotification('El carrito está vacío', 'error');
+        return;
+      }
+
+      const formData = new FormData(e.target);
+      const orderData = {
+        user_email: formData.get('email'),
+        total: total,
+        status: 'pending',
+        items: cart,
+        shipping_info: {
+          name: formData.get('name'),
+          phone: formData.get('phone'),
+          address: formData.get('address')
+        },
+        payment_method: formData.get('payment')
+      };
+
+      try {
+        rateLimiter.checkLimit('CREATE_ORDER', 5, 60000);
+        
+        const { data, error } = await db.from('orders').insert(orderData).select().single();
+        
+        if (error) throw error;
+
+        // Crear order_items
+        for (const item of cart) {
+          await db.from('order_items').insert({
+            order_id: data.id,
+            product_id: item.id,
+            quantity: item.qty,
+            size: item.size,
+            color: item.color,
+            price: item.price
+          });
+        }
+
+        clearCart();
+        showNotification('¡Pedido confirmado! ID: ' + data.id.slice(0, 8), 'success');
+        setTimeout(() => window.location.href = 'index.html', 2000);
+      } catch (err) {
+        console.error(err);
+        showNotification('Error al procesar el pedido: ' + err.message, 'error');
+      }
+    });
+
+    document.addEventListener('DOMContentLoaded', updateCartBadge);
+  </script>
+</body>
+</html>

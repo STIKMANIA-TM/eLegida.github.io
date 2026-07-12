@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Catálogo | ELEGIDA</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="bg-gray-50">
+  <nav class="bg-white shadow sticky top-0 z-40">
+    <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+      <a href="index.html" class="text-2xl font-bold text-pink-600">ELEGIDA</a>
+      <a href="carrito.html" class="relative">🛒 <span id="cart-badge" class="absolute -top-2 -right-2 bg-pink-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center"></span></a>
+    </div>
+  </nav>
+
+  <main class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold mb-6">Catálogo</h1>
+    
+    <!-- Filtros -->
+    <div class="bg-white p-4 rounded-lg shadow mb-8 grid grid-cols-1 md:grid-cols-4 gap-4">
+      <input type="text" id="search" placeholder="Buscar..." class="border p-2 rounded w-full">
+      <select id="category" class="border p-2 rounded w-full">
+        <option value="">Todas las categorías</option>
+        <option value="Ropa">Ropa</option>
+        <option value="Zapatos">Zapatos</option>
+        <option value="Accesorios">Accesorios</option>
+      </select>
+      <input type="number" id="maxPrice" placeholder="Precio máximo" class="border p-2 rounded w-full">
+      <button id="apply-filters" class="bg-pink-600 text-white p-2 rounded hover:bg-pink-700">Filtrar</button>
+    </div>
+
+    <!-- Grid de Productos -->
+    <div id="products-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"></div>
+
+    <!-- Paginación -->
+    <div id="pagination" class="flex justify-center gap-2 mt-8"></div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/config.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/cart.js"></script>
+  <script src="js/products.js"></script>
+  <script>
+    let currentPage = 1;
+    const limit = 12;
+
+    async function renderCatalog() {
+      const filters = {
+        search: document.getElementById('search').value,
+        category: document.getElementById('category').value,
+        maxPrice: document.getElementById('maxPrice').value
+      };
+      
+      const { data, count } = await fetchProducts(currentPage, limit, filters);
+      const grid = document.getElementById('products-grid');
+      
+      if (data.length === 0) {
+        grid.innerHTML = '<p class="col-span-full text-center text-gray-500">No se encontraron productos.</p>';
+      } else {
+        grid.innerHTML = data.map(p => `
+          <a href="producto.html?id=${p.id}" class="bg-white rounded-lg shadow hover:shadow-xl transition overflow-hidden">
+            <img src="${p.images[0]}" alt="${p.name}" class="w-full aspect-square object-cover" loading="lazy">
+            <div class="p-4">
+              <h3 class="font-semibold truncate">${p.name}</h3>
+              <p class="text-sm text-gray-500">${p.category}</p>
+              <p class="text-pink-600 font-bold">${formatPrice(p.price)}</p>
+            </div>
+          </a>
+        `).join('');
+      }
+
+      // Render Paginación
+      const totalPages = Math.ceil(count / limit);
+      const pagDiv = document.getElementById('pagination');
+      pagDiv.innerHTML = '';
+      for (let i = 1; i <= totalPages; i++) {
+        pagDiv.innerHTML += `<button onclick="changePage(${i})" class="px-4 py-2 rounded ${i === currentPage ? 'bg-pink-600 text-white' : 'bg-white border'}">${i}</button>`;
+      }
+    }
+
+    window.changePage = (page) => { currentPage = page; renderCatalog(); window.scrollTo(0,0); };
+
+    document.getElementById('apply-filters').addEventListener('click', () => { currentPage = 1; renderCatalog(); });
+    document.addEventListener('DOMContentLoaded', () => { updateCartBadge(); renderCatalog(); });
+  </script>
+</body>
+</html>

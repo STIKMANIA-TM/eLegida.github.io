@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ELEGIDA Habana | Moda Exclusiva</title>
+  <meta name="description" content="Tienda de moda exclusiva en La Habana.">
+  <link rel="manifest" href="manifest.json">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="bg-gray-50 font-sans">
+  <nav class="bg-white shadow sticky top-0 z-40">
+    <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+      <a href="index.html" class="text-2xl font-bold text-pink-600">ELEGIDA</a>
+      <div class="flex items-center gap-4">
+        <a href="login.html" class="text-gray-600 hover:text-pink-600">👤</a>
+        <a href="carrito.html" class="relative text-gray-600 hover:text-pink-600">
+          🛒 <span id="cart-badge" class="absolute -top-2 -right-2 bg-pink-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center"></span>
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <header class="bg-gradient-to-r from-pink-600 to-purple-600 text-white py-20 text-center">
+    <h1 class="text-4xl md:text-6xl font-bold mb-4">Moda que te define</h1>
+    <p class="text-xl mb-8">Descubre la nueva colección en Vedado y Centro Habana</p>
+    <a href="catalogo.html" class="bg-white text-pink-600 px-8 py-3 rounded-full font-bold hover:bg-gray-100 transition">Ver Catálogo</a>
+  </header>
+
+  <main class="container mx-auto px-4 py-12">
+    <h2 class="text-3xl font-bold mb-8 text-center">Destacados</h2>
+    <div id="featured-grid" class="grid grid-cols-2 md:grid-cols-4 gap-6"></div>
+  </main>
+
+  <footer class="bg-gray-900 text-white py-8 text-center mt-12">
+    <p>© 2026 ELEGIDA Habana. Todos los derechos reservados.</p>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+  <script src="js/config.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/cart.js"></script>
+  <script src="js/notifications.js"></script>
+  <script src="js/products.js"></script>
+  <script>
+    async function loadFeatured() {
+      const { data } = await fetchProducts(1, 8, { featured: true }); // Asumiendo campo featured
+      const grid = document.getElementById('featured-grid');
+      grid.innerHTML = data.map(p => `
+        <a href="producto.html?id=${p.id}" class="bg-white rounded-lg shadow hover:shadow-xl transition overflow-hidden">
+          <img src="${p.images[0]}" alt="${p.name}" class="w-full aspect-square object-cover" loading="lazy">
+          <div class="p-4">
+            <h3 class="font-semibold truncate">${p.name}</h3>
+            <p class="text-pink-600 font-bold">${formatPrice(p.price)}</p>
+          </div>
+        </a>
+      `).join('');
+    }
+    document.addEventListener('DOMContentLoaded', () => { updateCartBadge(); loadFeatured(); initNotifications(); });
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+  </script>
+</body>
+</html>

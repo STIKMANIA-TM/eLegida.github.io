@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Producto | ELEGIDA</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="bg-gray-50">
+  <nav class="bg-white shadow sticky top-0 z-40">
+    <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+      <a href="index.html" class="text-2xl font-bold text-pink-600">ELEGIDA</a>
+      <a href="carrito.html" class="relative">🛒 <span id="cart-badge" class="absolute -top-2 -right-2 bg-pink-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center"></span></a>
+    </div>
+  </nav>
+
+  <main class="container mx-auto px-4 py-8" id="product-container">
+    <p class="text-center py-12">Cargando...</p>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/config.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/cart.js"></script>
+  <script src="js/products.js"></script>
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get('id');
+    let selectedSize = null, selectedColor = null;
+
+    async function loadProduct() {
+      const p = await fetchProductById(id);
+      if (!p) { document.getElementById('product-container').innerHTML = '<p class="text-center">Producto no encontrado</p>'; return; }
+
+      document.getElementById('product-container').innerHTML = `
+        <div class="grid md:grid-cols-2 gap-8">
+          <img src="${p.images[0]}" alt="${p.name}" class="w-full rounded-lg shadow-lg">
+          <div>
+            <h1 class="text-3xl font-bold mb-2">${p.name}</h1>
+            <p class="text-2xl text-pink-600 font-bold mb-4">${formatPrice(p.price)}</p>
+            <p class="text-gray-600 mb-6">${p.description}</p>
+            
+            <div class="mb-4">
+              <p class="font-semibold mb-2">Talla:</p>
+              <div class="flex gap-2 flex-wrap">
+                ${p.sizes.map(s => `<button onclick="selectOption('size', '${s}', this)" class="border px-4 py-2 rounded hover:border-pink-600">${s}</button>`).join('')}
+              </div>
+            </div>
+
+            <div class="mb-6">
+              <p class="font-semibold mb-2">Color:</p>
+              <div class="flex gap-2 flex-wrap">
+                ${p.colors.map(c => `<button onclick="selectOption('color', '${c}', this)" class="border px-4 py-2 rounded hover:border-pink-600">${c}</button>`).join('')}
+              </div>
+            </div>
+
+            <button onclick="handleAddToCart()" class="w-full bg-pink-600 text-white py-3 rounded-lg font-bold hover:bg-pink-700 transition">Añadir al Carrito</button>
+          </div>
+        </div>
+      `;
+    }
+
+    window.selectOption = (type, value, btn) => {
+      if (type === 'size') selectedSize = value;
+      if (type === 'color') selectedColor = value;
+      btn.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('bg-pink-600', 'text-white'));
+      btn.classList.add('bg-pink-600', 'text-white');
+    };
+
+    window.handleAddToCart = async () => {
+      if (!selectedSize || !selectedColor) return showNotification('Selecciona talla y color', 'error');
+      const p = await fetchProductById(id);
+      addToCart(p, selectedSize, selectedColor);
+    };
+
+    document.addEventListener('DOMContentLoaded', () => { updateCartBadge(); loadProduct(); });
+  </script>
+</body>
+</html>

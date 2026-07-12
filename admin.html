@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Panel Admin | ELEGIDA</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="bg-gray-50">
+  <nav class="bg-white shadow sticky top-0 z-40">
+    <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+      <a href="index.html" class="text-2xl font-bold text-pink-600">ELEGIDA Admin</a>
+      <button onclick="logout()" class="text-red-600 hover:text-red-700 font-semibold">Cerrar Sesión</button>
+    </div>
+  </nav>
+
+  <main class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold mb-6">Panel de Administración</h1>
+    
+    <div class="grid md:grid-cols-3 gap-6 mb-8">
+      <a href="admin.html?tab=products" class="bg-white p-6 rounded-lg shadow hover:shadow-xl transition text-center">
+        <div class="text-4xl mb-2">📦</div>
+        <h3 class="font-bold text-lg">Productos</h3>
+        <p class="text-gray-500 text-sm">Gestionar catálogo</p>
+      </a>
+      <a href="admin.html?tab=orders" class="bg-white p-6 rounded-lg shadow hover:shadow-xl transition text-center">
+        <div class="text-4xl mb-2"></div>
+        <h3 class="font-bold text-lg">Pedidos</h3>
+        <p class="text-gray-500 text-sm">Ver y gestionar</p>
+      </a>
+      <a href="index.html" class="bg-white p-6 rounded-lg shadow hover:shadow-xl transition text-center">
+        <div class="text-4xl mb-2">🏪</div>
+        <h3 class="font-bold text-lg">Tienda</h3>
+        <p class="text-gray-500 text-sm">Ver sitio web</p>
+      </a>
+    </div>
+
+    <!-- Sección de Productos -->
+    <div id="products-section" class="bg-white p-6 rounded-lg shadow hidden">
+      <h2 class="text-2xl font-bold mb-4">Gestión de Productos</h2>
+      
+      <!-- Formulario agregar producto -->
+      <form id="add-product-form" class="space-y-3 mb-6 p-4 bg-gray-50 rounded">
+        <input type="text" name="name" placeholder="Nombre del producto" required class="w-full border p-2 rounded">
+        <textarea name="description" placeholder="Descripción" rows="2" class="w-full border p-2 rounded"></textarea>
+        <div class="grid grid-cols-2 gap-3">
+          <input type="number" name="price" placeholder="Precio" step="0.01" required class="border p-2 rounded">
+          <input type="text" name="category" placeholder="Categoría" required class="border p-2 rounded">
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <input type="text" name="sizes" placeholder="Tallas (ej: S,M,L,XL)" class="border p-2 rounded">
+          <input type="text" name="colors" placeholder="Colores (ej: Negro,Blanco)" class="border p-2 rounded">
+        </div>
+        <input type="text" name="images" placeholder="URL de imagen" class="w-full border p-2 rounded">
+        <input type="number" name="stock" placeholder="Stock" required class="border p-2 rounded">
+        <label class="flex items-center gap-2">
+          <input type="checkbox" name="featured"> Producto destacado
+        </label>
+        <button type="submit" class="w-full bg-green-600 text-white py-2 rounded font-bold hover:bg-green-700">
+          Agregar Producto
+        </button>
+      </form>
+
+      <!-- Lista de productos -->
+      <div id="products-list" class="space-y-2"></div>
+    </div>
+
+    <!-- Sección de Pedidos -->
+    <div id="orders-section" class="bg-white p-6 rounded-lg shadow hidden">
+      <h2 class="text-2xl font-bold mb-4">Pedidos Recientes</h2>
+      <div id="orders-list" class="space-y-3"></div>
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/config.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    async function checkAuth() {
+      const user = await getUser();
+      if (!user) {
+        window.location.href = 'login.html';
+      }
+    }
+
+    // Agregar producto
+    document.getElementById('add-product-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      
+      const product = {
+        name: formData.get('name'),
+        description: formData.get('description'),
+        price: parseFloat(formData.get('price')),
+        category: formData.get('category'),
+        sizes: formData.get('sizes').split(',').map(s => s.trim()),
+        colors: formData.get('colors').split(',').map(s => s.trim()),
+        images: [formData.get('images')],
+        stock: parseInt(formData.get('stock')),
+        featured: formData.get('featured') === 'on',
+        is_active: true
+      };
+
+      try {
+        const { error } = await db.from('products').insert(product);
+        if (error) throw error;
+        showNotification('Producto agregado', 'success');
+        e.target.reset();
+        loadProducts();
+      } catch (err) {
+        showNotification('Error: ' + err.message, 'error');
+      }
+    });
+
+    // Cargar productos
+    async function loadProducts() {
+      const { data } = await db.from('products').select('*').order('created_at', { ascending: false });
+      const list = document.getElementById('products-list');
+      
+      list.innerHTML = data.map(p => `
+        <div class="flex justify-between items-center p-3 border rounded">
+          <div>
+            <p class="font-semibold">${p.name}</p>
+            <p class="text-sm text-gray-500">${p.category} | ${formatPrice(p.price)} | Stock: ${p.stock}</p>
+          </div>
+          <button onclick="deleteProduct('${p.id}')" class="text-red-500 hover:text-red-700">🗑️</button>
+        </div>
+      `).join('');
+    }
+
+    // Eliminar producto
+    window.deleteProduct = async (id) => {
+      if (!confirm('¿Eliminar este producto?')) return;
+      await db.from('products').delete().eq('id', id);
+      loadProducts();
+    };
+
+    // Cargar pedidos
+    async function loadOrders() {
+      const { data } = await db.from('orders').select('*').order('created_at', { ascending: false }).limit(20);
+      const list = document.getElementById('orders-list');
+      
+      list.innerHTML = data.map(o => `
+        <div class="p-4 border rounded">
+          <div class="flex justify-between items-start">
+            <div>
+              <p class="font-semibold">Pedido #${o.id.slice(0, 8)}</p>
+              <p class="text-sm text-gray-500">${o.user_email} | ${o.shipping_info?.name || 'N/A'}</p>
+              <p class="text-sm">Método: ${o.payment_method} | Total: ${formatPrice(o.total)}</p>
+              <p class="text-xs text-gray-400">${new Date(o.created_at).toLocaleString()}</p>
+            </div>
+            <select onchange="updateOrderStatus('${o.id}', this.value)" class="border p-2 rounded">
+              <option value="pending" ${o.status === 'pending' ? 'selected' : ''}>Pendiente</option>
+              <option value="confirmed" ${o.status === 'confirmed' ? 'selected' : ''}>Confirmado</option>
+              <option value="shipped" ${o.status === 'shipped' ? 'selected' : ''}>Enviado</option>
+              <option value="delivered" ${o.status === 'delivered' ? 'selected' : ''}>Entregado</option>
+              <option value="cancelled" ${o.status === 'cancelled' ? 'selected' : ''}>Cancelado</option>
+            </select>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Actualizar estado del pedido
+    window.updateOrderStatus = async (orderId, status) => {
+      await db.from('orders').update({ status }).eq('id', orderId);
+      showNotification('Estado actualizado', 'success');
+    };
+
+    // Mostrar sección según tab
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get('tab') || 'products';
+    
+    document.addEventListener('DOMContentLoaded', async () => {
+      await checkAuth();
+      if (tab === 'orders') {
+        document.getElementById('orders-section').classList.remove('hidden');
+        loadOrders();
+      } else {
+        document.getElementById('products-section').classList.remove('hidden');
+        loadProducts();
+      }
+    });
+  </script>
+</body>
+</html>

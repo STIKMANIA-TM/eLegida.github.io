@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login | ELEGIDA</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="bg-gray-50">
+  <nav class="bg-white shadow sticky top-0 z-40">
+    <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+      <a href="index.html" class="text-2xl font-bold text-pink-600">ELEGIDA</a>
+      <a href="carrito.html" class="relative"> <span id="cart-badge" class="absolute -top-2 -right-2 bg-pink-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center"></span></a>
+    </div>
+  </nav>
+
+  <main class="container mx-auto px-4 py-12 max-w-md">
+    <div class="bg-white p-8 rounded-lg shadow">
+      <h1 class="text-3xl font-bold text-center mb-6">Acceso Admin</h1>
+      
+      <!-- Formulario de login -->
+      <form id="login-form" class="space-y-4">
+        <div>
+          <label class="block font-semibold mb-1">Email</label>
+          <input type="email" id="email" required class="w-full border p-2 rounded">
+        </div>
+        
+        <div id="password-field">
+          <label class="block font-semibold mb-1">Contraseña</label>
+          <input type="password" id="password" class="w-full border p-2 rounded">
+        </div>
+
+        <div id="otp-field" class="hidden">
+          <label class="block font-semibold mb-1">Código OTP (revisa tu email)</label>
+          <input type="text" id="otp" maxlength="6" class="w-full border p-2 rounded text-center text-2xl tracking-widest">
+        </div>
+
+        <button type="submit" id="submit-btn" class="w-full bg-pink-600 text-white py-3 rounded-lg font-bold hover:bg-pink-700 transition">
+          Enviar código OTP
+        </button>
+      </form>
+
+      <div id="user-info" class="hidden text-center">
+        <p class="mb-4">Sesión iniciada como: <span id="user-email" class="font-semibold"></span></p>
+        <a href="admin.html" class="block w-full bg-green-600 text-white py-3 rounded-lg font-bold hover:bg-green-700 transition mb-2">
+          Ir al Panel Admin
+        </a>
+        <button onclick="logout()" class="w-full border border-gray-300 py-3 rounded-lg font-bold hover:bg-gray-50 transition">
+          Cerrar Sesión
+        </button>
+      </div>
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/config.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/cart.js"></script>
+  <script>
+    let otpSent = false;
+
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('email').value;
+      
+      if (!otpSent) {
+        // Primer paso: enviar OTP
+        await loginWithOTP(email);
+        otpSent = true;
+        document.getElementById('password-field').classList.add('hidden');
+        document.getElementById('otp-field').classList.remove('hidden');
+        document.getElementById('submit-btn').textContent = 'Verificar código';
+      } else {
+        // Segundo paso: verificar OTP
+        const otp = document.getElementById('otp').value;
+        await verifyOTP(email, otp);
+      }
+    });
+
+    async function checkSession() {
+      const user = await getUser();
+      if (user) {
+        document.getElementById('login-form').classList.add('hidden');
+        document.getElementById('user-info').classList.remove('hidden');
+        document.getElementById('user-email').textContent = user.email;
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      updateCartBadge();
+      checkSession();
+    });
+  </script>
+</body>
+</html>
